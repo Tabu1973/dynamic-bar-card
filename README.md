@@ -81,3 +81,8 @@ entities:
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+* Built with [Lit](https://lit.dev/) (specifically `LitElement`), which is bundled with Home Assistant.
+* Inspired by the wonderful Home Assistant custom card community.
