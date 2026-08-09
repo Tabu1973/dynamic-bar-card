@@ -17,14 +17,21 @@ A highly customizable, responsive, and dynamic progress bar card for Home Assist
 - **Internationalization (i18n)**: Out-of-the-box support for multiple languages (English and German included). Automatically adapts to your Home Assistant user profile settings.
 - **Independent Color Modes**: Configure icon colors to follow your theme (default), match the dynamic bar color, or use a static color.
 
+## Screenshots
+
+![Screenshot 1](images/screenshot1.png)
+![Screenshot 2](images/screenshot2.png)
+
 ## Installation
 
 ### HACS (Recommended)
 
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Tabu1973&repository=dynamic-bar-card&category=plugin)
+
 1. Open HACS in Home Assistant.
 2. Go to "Frontend".
 3. Click the 3 dots in the top right corner and select **Custom repositories**.
-4. Add the URL of this repository: `https://github.com/YOUR_GITHUB_USERNAME/dynamic-bar-card`
+4. Add the URL of this repository: `https://github.com/Tabu1973/dynamic-bar-card`
 5. Select **Dashboard** as the category and click Add.
 6. Install the **Dynamic Bar Card**.
 7. (Optional but recommended) Refresh your browser cache.
