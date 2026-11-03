@@ -70,7 +70,19 @@ const translations = {
     delete_color: "Delete color",
     add_color: "+ Add Color",
     add_new_bar: "+ Add New Bar",
-    description: "A card for dynamic progress bars with color thresholds."
+    description: "A card for dynamic progress bars with color thresholds.",
+    tap_action: "Tap Action",
+    action_default: "Default (More-Info)",
+    action_more_info: "More Info",
+    action_toggle: "Toggle",
+    action_navigate: "Navigate to Path",
+    action_url: "Open URL",
+    action_perform_action: "Perform Action / Service",
+    action_none: "None (Disabled)",
+    navigation_path: "Navigation Path (e.g. /lovelace/home)",
+    url_path: "URL Path (e.g. https://...)",
+    perform_action_name: "Action / Service (e.g. light.toggle)",
+    global_tap_action: "Global Tap Action (Card Header)"
   },
   de: {
     title_example: "Pollenflug (Beispiel)",
@@ -125,7 +137,19 @@ const translations = {
     delete_color: "Farbe löschen",
     add_color: "+ Farbe hinzufügen",
     add_new_bar: "+ Neuen Balken hinzufügen",
-    description: "Eine Karte für dynamische Fortschrittsbalken mit Farbschwellenwerten."
+    description: "Eine Karte für dynamische Fortschrittsbalken mit Farbschwellenwerten.",
+    tap_action: "Tipp-Aktion (Klick)",
+    action_default: "Standard (Mehr-Info)",
+    action_more_info: "Mehr Info",
+    action_toggle: "Umschalten",
+    action_navigate: "Zu Pfad navigieren",
+    action_url: "URL öffnen",
+    action_perform_action: "Dienst / Aktion ausführen",
+    action_none: "Keine Aktion (Deaktiviert)",
+    navigation_path: "Navigationspfad (z.B. /lovelace/home)",
+    url_path: "URL Pfad (z.B. https://...)",
+    perform_action_name: "Aktion / Dienst (z.B. light.toggle)",
+    global_tap_action: "Globale Tipp-Aktion (Kartenkopf)"
   }
 };
 
@@ -306,6 +330,57 @@ class DynamicBarCard extends LitElement {
     return this._getContrastColor(bgColor);
   }
 
+  _handleTap(conf, ev) {
+    if (ev) ev.stopPropagation();
+    let tapAction = conf.tap_action !== undefined ? conf.tap_action : this._config.tap_action;
+    if (tapAction === undefined) {
+      tapAction = { action: "more-info" };
+    }
+    if (tapAction === "none" || (typeof tapAction === "object" && tapAction.action === "none")) {
+      return;
+    }
+
+    const actionConfig = typeof tapAction === "string" ? { action: tapAction } : { ...tapAction };
+    const entityId = actionConfig.entity || conf.entity;
+
+    // Dispatch Home Assistant's standard hass-action event
+    fireEvent(this, "hass-action", {
+      config: {
+        entity: entityId,
+        tap_action: actionConfig,
+      },
+      action: "tap",
+    });
+
+    // Fallback for more-info to guarantee popup opens in all contexts
+    if ((!actionConfig.action || actionConfig.action === "more-info") && entityId) {
+      fireEvent(this, "hass-more-info", { entityId });
+    }
+  }
+
+  _handleCardTap(ev) {
+    if (!this._config.tap_action || this._config.tap_action === "none") return;
+    const actionConfig = typeof this._config.tap_action === "string"
+      ? { action: this._config.tap_action }
+      : { ...this._config.tap_action };
+    if (actionConfig.action === "none") return;
+
+    const defaultEntity = this._config.entities?.[0]?.entity;
+    const entityId = actionConfig.entity || defaultEntity;
+
+    fireEvent(this, "hass-action", {
+      config: {
+        entity: entityId,
+        tap_action: actionConfig,
+      },
+      action: "tap",
+    });
+
+    if ((!actionConfig.action || actionConfig.action === "more-info") && entityId) {
+      fireEvent(this, "hass-more-info", { entityId });
+    }
+  }
+
   render() {
     if (!this._config || !this.hass) {
       return html``;
@@ -318,9 +393,10 @@ class DynamicBarCard extends LitElement {
     const layoutDir = this._config.layout_direction || "horizontal";
     const isVertical = layoutDir === "vertical";
     const verticalHeight = this._config.vertical_height !== undefined ? this._config.vertical_height : 150;
+    const hasCardTap = Boolean(this._config.tap_action && this._config.tap_action !== "none" && this._config.tap_action?.action !== "none");
 
     return html`
-      <ha-card header=${this._config.title || ""}>
+      <ha-card header=${this._config.title || ""} @click=${(ev) => this._handleCardTap(ev)} class="${hasCardTap ? 'card-clickable' : ''}">
         <div class="card-content ${isVertical ? 'layout-vertical' : ''}" style="--label-width: ${labelWidth}; --vertical-height: ${verticalHeight}px;">
           ${(this._config.entities || []).map((conf) => {
             const stateObj = this.hass.states[conf.entity];
@@ -329,6 +405,9 @@ class DynamicBarCard extends LitElement {
             const globalValuePos = this._config.value_position || 'outside';
             const insidePos = this._config.inside_position || 'dynamic';
             const outsidePos = this._config.outside_position || 'right';
+
+            const tapAction = conf.tap_action !== undefined ? conf.tap_action : this._config.tap_action;
+            const isClickable = tapAction !== "none" && !(typeof tapAction === "object" && tapAction.action === "none");
 
             const val = parseFloat(stateStr);
             const isNum = !isNaN(val);
@@ -368,7 +447,9 @@ class DynamicBarCard extends LitElement {
             }
 
             return html`
-              <div class="row ${globalLabelPos === 'inline' ? 'inline-layout' : ''}" style="--bar-height: ${barHeight}px; --bar-border-radius: ${borderRadius}px; --percentage: ${percentage}%; --scale: ${scaleStr};">
+              <div class="row ${globalLabelPos === 'inline' ? 'inline-layout' : ''} ${isClickable ? 'clickable' : ''}"
+                   @click=${(ev) => this._handleTap(conf, ev)}
+                   style="--bar-height: ${barHeight}px; --bar-border-radius: ${borderRadius}px; --percentage: ${percentage}%; --scale: ${scaleStr};">
                 <div class="info">
                   <ha-icon .icon=${icon} style="${appliedIconColor ? `color: ${appliedIconColor};` : ''}"></ha-icon>
                   <span class="name">${name}</span>
@@ -421,6 +502,26 @@ class DynamicBarCard extends LitElement {
         display: flex;
         flex-direction: column;
         gap: 8px;
+        position: relative;
+        transition: opacity 0.15s ease, transform 0.1s ease;
+      }
+      .row.clickable {
+        cursor: pointer;
+      }
+      .row.clickable:hover {
+        opacity: 0.85;
+      }
+      .row.clickable:active {
+        transform: scale(0.99);
+      }
+      .row.clickable .info,
+      .row.clickable .bar-container,
+      .row.clickable .name,
+      .row.clickable ha-icon {
+        cursor: pointer;
+      }
+      ha-card.card-clickable {
+        cursor: pointer;
       }
       .row.inline-layout {
         flex-direction: row;
@@ -684,6 +785,75 @@ class DynamicBarCardEditor extends LitElement {
       entity[field] = val;
     }
 
+    entities[index] = entity;
+    newConfig.entities = entities;
+    fireEvent(this, "config-changed", { config: newConfig });
+  }
+
+  _globalTapActionTypeChanged(e) {
+    const val = e.target.value;
+    let newConfig = { ...this._config };
+    if (val === "none") {
+      newConfig.tap_action = { action: "none" };
+    } else if (val === "navigate") {
+      const existing = typeof newConfig.tap_action === "object" ? newConfig.tap_action.navigation_path : "";
+      newConfig.tap_action = { action: "navigate", navigation_path: existing || "" };
+    } else if (val === "url") {
+      const existing = typeof newConfig.tap_action === "object" ? newConfig.tap_action.url_path : "";
+      newConfig.tap_action = { action: "url", url_path: existing || "" };
+    } else if (val === "more-info") {
+      newConfig.tap_action = { action: "more-info" };
+    }
+    fireEvent(this, "config-changed", { config: newConfig });
+  }
+
+  _globalTapActionPropChanged(e, prop) {
+    const val = e.target.value;
+    let newConfig = { ...this._config };
+    let tapAction = typeof newConfig.tap_action === "object" ? { ...newConfig.tap_action } : { action: newConfig.tap_action || "navigate" };
+    tapAction[prop] = val;
+    newConfig.tap_action = tapAction;
+    fireEvent(this, "config-changed", { config: newConfig });
+  }
+
+  _entityTapActionTypeChanged(e, index) {
+    const val = e.target.value;
+    let newConfig = { ...this._config };
+    let entities = [...(newConfig.entities || [])];
+    let entity = { ...entities[index] };
+
+    if (val === "default") {
+      delete entity.tap_action;
+    } else if (val === "more-info") {
+      entity.tap_action = { action: "more-info" };
+    } else if (val === "toggle") {
+      entity.tap_action = { action: "toggle" };
+    } else if (val === "navigate") {
+      const existing = typeof entity.tap_action === "object" ? entity.tap_action.navigation_path : "";
+      entity.tap_action = { action: "navigate", navigation_path: existing || "" };
+    } else if (val === "url") {
+      const existing = typeof entity.tap_action === "object" ? entity.tap_action.url_path : "";
+      entity.tap_action = { action: "url", url_path: existing || "" };
+    } else if (val === "perform-action") {
+      const existing = typeof entity.tap_action === "object" ? (entity.tap_action.perform_action || entity.tap_action.service) : "";
+      entity.tap_action = { action: "perform-action", perform_action: existing || "" };
+    } else if (val === "none") {
+      entity.tap_action = { action: "none" };
+    }
+
+    entities[index] = entity;
+    newConfig.entities = entities;
+    fireEvent(this, "config-changed", { config: newConfig });
+  }
+
+  _entityTapActionPropChanged(e, index, prop) {
+    const val = e.target.value;
+    let newConfig = { ...this._config };
+    let entities = [...(newConfig.entities || [])];
+    let entity = { ...entities[index] };
+    let tapAction = typeof entity.tap_action === "object" ? { ...entity.tap_action } : { action: entity.tap_action || "navigate" };
+    tapAction[prop] = val;
+    entity.tap_action = tapAction;
     entities[index] = entity;
     newConfig.entities = entities;
     fireEvent(this, "config-changed", { config: newConfig });
@@ -977,6 +1147,29 @@ class DynamicBarCardEditor extends LitElement {
               </div>
             `}
           </div>
+
+          <div class="field-row" style="margin-top: 12px;">
+            <div class="field">
+              <label>${localize('global_tap_action', this.hass?.language)}</label>
+              <select class="styled-input" @input=${this._globalTapActionTypeChanged}>
+                <option value="none" ?selected=${!this._config.tap_action || this._config.tap_action === 'none' || this._config.tap_action?.action === 'none'}>${localize('action_none', this.hass?.language)}</option>
+                <option value="more-info" ?selected=${this._config.tap_action === 'more-info' || this._config.tap_action?.action === 'more-info'}>${localize('action_more_info', this.hass?.language)}</option>
+                <option value="navigate" ?selected=${this._config.tap_action === 'navigate' || this._config.tap_action?.action === 'navigate'}>${localize('action_navigate', this.hass?.language)}</option>
+                <option value="url" ?selected=${this._config.tap_action === 'url' || this._config.tap_action?.action === 'url'}>${localize('action_url', this.hass?.language)}</option>
+              </select>
+            </div>
+            ${(this._config.tap_action === 'navigate' || this._config.tap_action?.action === 'navigate') ? html`
+              <div class="field">
+                <label>${localize('navigation_path', this.hass?.language)}</label>
+                <input type="text" class="styled-input" placeholder="/lovelace/home" .value=${this._config.tap_action?.navigation_path || ''} @input=${(e) => this._globalTapActionPropChanged(e, "navigation_path")} />
+              </div>
+            ` : (this._config.tap_action === 'url' || this._config.tap_action?.action === 'url') ? html`
+              <div class="field">
+                <label>${localize('url_path', this.hass?.language)}</label>
+                <input type="text" class="styled-input" placeholder="https://..." .value=${this._config.tap_action?.url_path || ''} @input=${(e) => this._globalTapActionPropChanged(e, "url_path")} />
+              </div>
+            ` : html`<div class="field"></div>`}
+          </div>
         </div>
         
         <h3>${localize('bars_entities', this.hass?.language)}</h3>
@@ -1072,6 +1265,37 @@ class DynamicBarCardEditor extends LitElement {
                     </div>
                   </div>
 
+                  <div class="field-row">
+                    <div class="field">
+                      <label>${localize('tap_action', this.hass?.language)}</label>
+                      <select class="styled-input" @input=${(e) => this._entityTapActionTypeChanged(e, index)}>
+                        <option value="default" ?selected=${!entity.tap_action || entity.tap_action === 'default'}>${localize('action_default', this.hass?.language)}</option>
+                        <option value="more-info" ?selected=${entity.tap_action === 'more-info' || entity.tap_action?.action === 'more-info'}>${localize('action_more_info', this.hass?.language)}</option>
+                        <option value="toggle" ?selected=${entity.tap_action === 'toggle' || entity.tap_action?.action === 'toggle'}>${localize('action_toggle', this.hass?.language)}</option>
+                        <option value="navigate" ?selected=${entity.tap_action === 'navigate' || entity.tap_action?.action === 'navigate'}>${localize('action_navigate', this.hass?.language)}</option>
+                        <option value="url" ?selected=${entity.tap_action === 'url' || entity.tap_action?.action === 'url'}>${localize('action_url', this.hass?.language)}</option>
+                        <option value="perform-action" ?selected=${entity.tap_action === 'perform-action' || entity.tap_action === 'call-service' || entity.tap_action?.action === 'perform-action' || entity.tap_action?.action === 'call-service'}>${localize('action_perform_action', this.hass?.language)}</option>
+                        <option value="none" ?selected=${entity.tap_action === 'none' || entity.tap_action?.action === 'none'}>${localize('action_none', this.hass?.language)}</option>
+                      </select>
+                    </div>
+                    ${(entity.tap_action === 'navigate' || entity.tap_action?.action === 'navigate') ? html`
+                      <div class="field">
+                        <label>${localize('navigation_path', this.hass?.language)}</label>
+                        <input type="text" class="styled-input" placeholder="/lovelace/home" .value=${entity.tap_action?.navigation_path || ''} @input=${(e) => this._entityTapActionPropChanged(e, index, "navigation_path")} />
+                      </div>
+                    ` : (entity.tap_action === 'url' || entity.tap_action?.action === 'url') ? html`
+                      <div class="field">
+                        <label>${localize('url_path', this.hass?.language)}</label>
+                        <input type="text" class="styled-input" placeholder="https://..." .value=${entity.tap_action?.url_path || ''} @input=${(e) => this._entityTapActionPropChanged(e, index, "url_path")} />
+                      </div>
+                    ` : (entity.tap_action === 'perform-action' || entity.tap_action === 'call-service' || entity.tap_action?.action === 'perform-action' || entity.tap_action?.action === 'call-service') ? html`
+                      <div class="field">
+                        <label>${localize('perform_action_name', this.hass?.language)}</label>
+                        <input type="text" class="styled-input" placeholder="homeassistant.toggle" .value=${entity.tap_action?.perform_action || entity.tap_action?.service || ''} @input=${(e) => this._entityTapActionPropChanged(e, index, "perform_action")} />
+                      </div>
+                    ` : html`<div class="field"></div>`}
+                  </div>
+
                   <div class="colors-section">
                     <h5 style="margin: 0 0 12px 0;">${localize('colors_gradient', this.hass?.language)}</h5>
                     <div class="field-row" style="margin-bottom: 12px;">
@@ -1135,6 +1359,9 @@ class DynamicBarCardEditor extends LitElement {
     if (prevEntity.bar_height !== undefined) entity.bar_height = prevEntity.bar_height;
     if (prevEntity.border_radius !== undefined) entity.border_radius = prevEntity.border_radius;
     if (prevEntity.gradient_type !== undefined) entity.gradient_type = prevEntity.gradient_type;
+    if (prevEntity.tap_action !== undefined) {
+      entity.tap_action = typeof prevEntity.tap_action === 'object' ? { ...prevEntity.tap_action } : prevEntity.tap_action;
+    }
     
     entities[entityIndex] = entity;
     newConfig.entities = entities;
@@ -1269,7 +1496,7 @@ window.customCards.push({
 });
 
 console.info(
-  `%c DYNAMIC-BAR-CARD %c v0.0.1b `,
+  `%c DYNAMIC-BAR-CARD %c v0.0.2 `,
   'color: white; background: #03a9f4; font-weight: 700;',
   'color: #03a9f4; background: white; font-weight: 700;'
 );

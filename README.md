@@ -1,13 +1,14 @@
 # Dynamic Bar Card for Home Assistant
 
-![Version](https://img.shields.io/badge/version-v0.0.1b-blue)
+![Version](https://img.shields.io/badge/version-v0.0.2-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-A highly customizable, responsive, and dynamic progress bar card for Home Assistant's Lovelace UI. Designed to display values beautifully with color thresholds, custom gradients, drag & drop sorting, and full visual editor support.
+A highly customizable, responsive, and dynamic progress bar card for Home Assistant's Lovelace UI. Designed to display values beautifully with color thresholds, custom gradients, drag & drop sorting, interactive tap actions, and full visual editor support.
 
 ## Features
 
 - **Multiple Entities**: Display multiple progress bars in a single card, either stacked vertically or side-by-side horizontally.
+- **Interactive Tap Actions**: Native Home Assistant tap actions (`more-info`, `toggle`, `navigate`, `url`, `perform-action`, or `none`) configurable globally or per-entity.
 - **Dynamic Colors & Gradients**: Define colors based on entity values. Support for smooth gradients or hard steps.
 - **Full Visual Editor Support**: Easily configure everything directly in the Home Assistant UI. Includes an intuitive drag & drop interface for sorting entities.
 - **Highly Customizable Layouts**:
